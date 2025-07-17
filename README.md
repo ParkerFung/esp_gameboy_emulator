@@ -108,11 +108,11 @@ I did some basic profiling to figure out where time is being spent.
 ---
 
 ### Sample Debug Output
-
+```
 CPU: 261467 us | Emu: 261467 us | Render: 9689 us | Total: 271156 us | FPS: 3.69
 CPU: 417968 us | Emu: 417968 us | Render: 9698 us | Total: 427666 us | FPS: 2.34
 CPU: 530069 us | Emu: 530069 us | Render: 9678 us | Total: 539747 us | FPS: 1.85
-
+```
 
 
 This clearly shows the majority of frame time is spent on CPU emulation, not rendering.
