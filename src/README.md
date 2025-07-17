@@ -1,105 +1,206 @@
-/*
-================================================================================
-Game Boy Emulator on ESP32 with ST7789 TFT Display
-================================================================================
+# Game Boy Emulator Port for ESP32-S3 + ST7789 Display
 
-Overview:
----------
-This project is a hardware adaptation and port of the Game Boy emulator from:
+---
 
-https://github.com/lualiliu/esp32-gameboy.git
+This personal learning project ports a Game Boy emulator originally made for the ESP32-WROVER and ILI9341 display, adapting it to the ESP32-S3 with an ST7789 using the TFT_eSPI library. The emulator works but runs very slowly (~2–4 FPS).
 
-The emulator runs on an ESP32 microcontroller with an ST7789 TFT display,
-rendering classic Game Boy games in real time. Input is handled via physical
-buttons wired to specific GPIO pins.
+---
 
-Modifications:
---------------
-- Switched from Adafruit ST7789 + GFX libraries to the faster TFT_eSPI library
-- Updated GPIO pin assignments to fit custom hardware wiring
-- Adjusted TFT SPI pin configuration (no reset or MISO pins used)
-- Minor code cleanups for compatibility with ESP32-S3 and display variants
+## What This Is
 
-Features:
----------
-- Game Boy emulator supporting multiple ROM mappers
-- ST7789 TFT display (240x240 or 240x320) via hardware SPI
-- Physical buttons for Up, Down, Left, Right, A, B, Start, Select (active low)
-- TFT backlight control via dedicated GPIO
-- Efficient 2-bit grayscale framebuffer rendering
-- DMA handling for OAM transfers
-- Modular design with CPU, memory, LCD, timer, interrupt, input, and display modules
+- Emulator port for ESP32-S3 with ST7789 (240x240 or 240x320)  
+- Uses TFT_eSPI instead of Adafruit GFX  
+- Supports physical button input via GPIO  
+- Runs at low performance, currently not playable  
 
-Hardware Requirements:
-----------------------
-- ESP32 microcontroller (ESP32-S3 or compatible)
-- ST7789 TFT display (240x240 or 240x320)
-- Physical push buttons wired to ESP32 GPIOs and connected to ground when pressed
+---
 
-Pin Configuration:
-------------------
-| Function             | GPIO Pin |
-|----------------------|----------|
-| TFT CS               | 5        |
-| TFT DC               | 2        |
-| TFT MOSI             | 17       |
-| TFT SCLK             | 18       |
-| TFT Backlight (LED)  | 15       |
-| Button Up            | 10       |
-| Button Down          | 21       |
-| Button Left          | 11       |
-| Button Right         | 12       |
-| Button A             | 20       |
-| Button B             | 7        |
-| Button Start         | 9        |
-| Button Select        | 15       |
 
-Note: All buttons are active low (connected to ground when pressed).
+## Why I Made This
 
-Software Setup:
----------------
-Libraries Required:
-- [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) Library (used instead of Adafruit ST7789)
-- Arduino core for ESP32 with SPI support
+I was originally looking to add a Game Boy emulator to my [esp_handheld project](https://github.com/ParkerFung/esp_handheld.git), but couldn’t find one compatible with my specific hardware setup. This led me to:
 
-> ⚠️ Configure your `User_Setup.h` or `platformio.ini` to match your hardware pinout for TFT_eSPI.
+- Adapt existing emulator code from using one display library to another (Adafruit ST7789 → TFT_eSPI)  
+- Profile and debug performance on an embedded system like the ESP32-S3  
+- Understand the optimizations needed to run emulators efficiently on microcontrollers  
 
-Building and Flashing:
-----------------------
-1. Set up the ESP32 development environment (Arduino IDE or PlatformIO)
-2. Install the required libraries (see above)
-3. Connect hardware per the pinout above
-4. Compile and upload code to the ESP32
-5. Power on device; TFT backlight should activate and emulator screen appear
+---
 
-Usage:
-------
-- Use physical buttons to control the Game Boy emulator
-- The display renders frames in real time
-- Backlight controlled via GPIO 15
+## Hardware Used
 
-Troubleshooting:
-----------------
-- Blank screen with backlight: verify SPI wiring and pin assignments
-- No button response: ensure buttons are connected to ground and GPIO pins are correct
-- Flickering or artifacts: try lowering SPI clock speed, check power supply stability
+| Component         | Description                       |
+|------------------|-----------------------------------|
+| ESP32-S3 Board   | ESP32-S3-WROOM-1 dev board        |
+| Display          | ST7789 240x240 SPI TFT            |
+| Buttons          | 8 push buttons (wired to GPIO)    |
 
-License and Credits:
---------------------
-This project is a derivative work based on:
+---
+
+### Button Pin Connections
+
+| Button       | GPIO Pin |
+|--------------|----------|
+| Up           | 10       |
+| Down         | 21       |
+| Left         | 11       |
+| Right        | 12       |
+| A            | 20       |
+| B            | 7        |
+| Start        | 9        |
+| Select       | 15       |
+
+> All buttons are active low — connect GPIO to GND when pressed.
+
+---
+
+### Display Pin Connections
+
+| TFT Pin     | ESP32 GPIO Pin |
+|-------------|----------------|
+| TFT_CS      | 5              |
+| TFT_DC      | 2              |
+| TFT_MOSI    | 17             |
+| TFT_SCLK    | 18             |
+| TFT_BL      | 15 (backlight) |
+
+No reset or MISO pins are used. Hardware SPI is required.  
+Make sure these match your `User_Setup.h` or `platformio.ini` config for **TFT_eSPI**.
+
+---
+
+## What Works
+
+- Emulator boots and displays output  
+- Physical buttons register correctly  
+- Display refresh works consistently  
+- Framebuffer rendering (2-bit grayscale)  
+- LCD and memory access are stable  
+- ROMs can be loaded and begin execution  
+
+---
+
+## What Doesn’t Work Well
+
+- **Main issue:** extremely low frame rate (~2–4 FPS)  
+- Games technically run but are **not playable**  
+- CPU cycle emulation is very slow  
+- Not optimized for ESP32-S3 yet  
+
+---
+
+## Performance Debugging (In Progress)
+
+I did some basic profiling to figure out where time is being spent.
+
+### Key Findings:
+- Frame rendering only takes **~9700 µs**  
+- CPU emulation takes **~260,000 to 530,000 µs**  
+- FPS measured between **1.8 and 3.7**  
+- Memory, input, and display logic are *not* the bottleneck  
+- Main loop and frame pacing logic are functioning correctly
+
+### Debug Tools Added:
+- Timing using `esp_timer_get_time()`  
+- Per-opcode timing counters inside `cpu_cycle()`  
+- Serial debug output of frame time and FPS  
+- External arrays to track slow instructions  
+- Optional frame delay to target 59.7 FPS (for future optimization)
+
+---
+
+### Sample Debug Output
+
+CPU: 261467 us | Emu: 261467 us | Render: 9689 us | Total: 271156 us | FPS: 3.69
+CPU: 417968 us | Emu: 417968 us | Render: 9698 us | Total: 427666 us | FPS: 2.34
+CPU: 530069 us | Emu: 530069 us | Render: 9678 us | Total: 539747 us | FPS: 1.85
+
+
+
+This clearly shows the majority of frame time is spent on CPU emulation, not rendering.
+
+---
+
+## Code Changes Summary
+
+- Replaced Adafruit ST7789 + GFX libraries with **TFT_eSPI** for faster display handling  
+- Adapted pin mappings and removed reset/MISO pins unused by ST7789  
+- Updated button GPIO assignments for my custom wiring  
+- Added timing instrumentation inside `loop()` and `cpu_cycle()` to profile performance  
+- Defined and exported opcode timing counters to identify slow instructions  
+
+---
+
+## Next Steps and Future Plans
+
+- Output top slowest opcodes to identify optimization targets  
+- Optimize opcode handlers and memory access routines  
+- Use `IRAM_ATTR` to place hot functions in instruction RAM  
+- Explore alternate rendering techniques or hardware acceleration if available  
+
+---
+
+## Hardware Requirements
+
+- ESP32-S3 microcontroller (tested on ESP32-S3-WROOM-1)  
+- ST7789 TFT display (240x240 or 240x320 SPI interface)  
+- Physical buttons wired between GPIO and ground (active low)  
+- USB or battery power source  
+
+---
+
+## How To Build and Flash
+
+1. Install [PlatformIO](https://platformio.org/) or use Arduino IDE with ESP32 support  
+2. Clone this repository  
+3. Install **TFT_eSPI** library  
+4. Configure pin assignments in `User_Setup.h` or `platformio.ini` to match your hardware  
+5. Compile and upload the code to your ESP32-S3  
+6. Connect buttons and display per the pinout above  
+7. Power on and observe the emulator boot screen  
+
+---
+
+## Contributing
+
+Contributions are very welcome! If you'd like to help optimize, fix bugs, or add features, please feel free to open issues or submit pull requests.
+
+Before submitting changes, please ensure:
+- Your code is well-documented and clean.
+- Changes are focused and clearly explained in the PR description.
+- You test your changes on actual hardware if possible.
+
+Thanks for your interest and support!
+
+---
+
+
+## License and Credits
+
+This project is based on the original work from:
 
 https://github.com/lualiliu/esp32-gameboy.git  
-Copyright (c) lualiliu and contributors
+(C) lualiliu and contributors
 
-Original project is licensed under GNU General Public License v3.0 (GPLv3).
 
-This adaptation inherits the same GPLv3 license. See LICENSE file for details.
+Special thanks to:  
+- lualiliu for the original ESP32 Game Boy emulator  
+- Bodmer for the TFT_eSPI library  
+- The ESP32 and Arduino development communities  
 
-Acknowledgments:
-----------------
-- Original author lualiliu for the ESP32 Game Boy emulator
-- Bodmer for the TFT_eSPI library
-- ESP32 and Arduino development communities
+---
 
-================================================================================
-*/
+## Final Notes
+
+This emulator port is a work-in-progress and primarily a learning tool for me to explore:
+
+- Embedded emulator development  
+- Performance profiling on microcontrollers  
+- Display driver adaptation  
+- ESP32-S3 hardware capabilities  
+
+Though it’s not yet performant enough for smooth gameplay, I’m excited to keep improving it and hope others can learn from my experience.
+
+---
+
+**Created by Parker Fung**  
+*July 2025*  
