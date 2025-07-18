@@ -269,16 +269,6 @@ static void draw_sprites(byte *b, int line, int nsprites, struct sprite *s)
 
 
 			pal = (s[i].flags & PNUM) ? sprpalette2 : sprpalette1;
-			/* Sprite is behind BG, only render over palette entry 0 */
-			//----------------------------------------------------------------------------------
-			// if(s[i].flags & PRIO)
-			// {
-			// 	unsigned int temp = b[line*640+(x + s[i].x)];
-			// 	if(temp != colours[bgpalette[0]])
-			// 		continue;
-			// }
-			//b[line*640+(x + s[i].x)] = colours[pal[colour]];
-			//------------------------------------------------------------------------
 			if(s[i].flags & PRIO)
 			{
 				byte bg_pixel = getPixelFromFramebuffer(x + s[i].x, line, b);
@@ -387,7 +377,6 @@ int lcd_cycle(void)
 
 	if(prev_line == 143 && lcd_line == 144)
 	{
-		//draw_stuff();
 		interrupt(INTR_VBLANK);
 		sdl_frame();
 	}

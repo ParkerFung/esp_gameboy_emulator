@@ -15,7 +15,6 @@ This personal learning project ports a Game Boy emulator originally made for the
 
 ---
 
-
 ## Why I Made This
 
 I was originally looking to add a Game Boy emulator to my [esp_handheld project](https://github.com/ParkerFung/esp_handheld.git), but couldn’t find one compatible with my specific hardware setup. This led me to:

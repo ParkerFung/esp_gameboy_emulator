@@ -22,14 +22,16 @@ void setup() {
   cpu_init();           // Initialize CPU
 }
 
-void loop() {
-  const int cycles_per_frame = 69905;
-  int cycles = 0;
+const int cycles_per_frame = 69905;
+const int frame_skip = 4;   // Render every 4 frames
+int frame_count = 0;
 
+void loop() {
+  int cycles = 0;
   int64_t frame_start = esp_timer_get_time();
   int64_t cpu_start = esp_timer_get_time();
 
-  // Run emulator for one frame
+  // Run CPU emulation for one frame worth of cycles
   while (cycles < cycles_per_frame) {
     cycles += cpu_cycle();
     lcd_cycle();
@@ -38,21 +40,19 @@ void loop() {
 
   int64_t cpu_end = esp_timer_get_time();
 
-  sdl_update();   // Read inputs
-  sdl_frame();    // Draw frame to screen
+  sdl_update();  // Always update input
+
+  // Only render on selected frames to save time
+  if (frame_count % frame_skip == 0) {
+    sdl_frame();
+  }
+
+  frame_count++;
 
   int64_t render_end = esp_timer_get_time();
-
-  int64_t emu_time = cpu_end - frame_start;
-  int64_t cpu_time = cpu_end - cpu_start;
-  int64_t render_time = render_end - cpu_end;
   int64_t total_time = render_end - frame_start;
 
-  Serial.printf("CPU: %lld us | Emu: %lld us | Render: %lld us | Total: %lld us | FPS: %.2f\n",
-                cpu_time, emu_time, render_time, total_time,
-                1000000.0 / total_time);
-
-  // Delay to target ~60 FPS (optional)
+  // Optional: delay to maintain ~60 FPS if we're running too fast
   const int64_t frame_duration_us = 1000000 / 59.7;
   int64_t frame_elapsed = esp_timer_get_time() - frame_start;
   if (frame_elapsed < frame_duration_us) {
